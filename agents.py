@@ -7,10 +7,14 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
+# Use modern models that are widely supported and permitted.
+# User can override this by setting the GEMINI_MODEL environment variable.
+DEFAULT_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash")
+
 class BaseAgent:
-    def __init__(self, name, model="gemini-1.5-pro-latest"):
+    def __init__(self, name, model=None):
         self.name = name
-        self.model = model
+        self.model = model if model is not None else DEFAULT_MODEL
         self.use_real_llm = bool(GEMINI_API_KEY)
         if self.use_real_llm:
             self.llm = genai.GenerativeModel(self.model)
