@@ -2,36 +2,29 @@ import os
 import argparse
 from agents import ReaderAgent, WriterAgent, ReviewerAgent
 
-def process_file(filepath):
-    print(f"\n--- Pipeline Started: Processing {filepath} ---")
+def process_file(filepath, reader, writer, reviewer):
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             code = f.read()
     except Exception as e:
-        print(f"Failed to read {filepath}: {e}")
-        return
+        return f"Failed to read {filepath}: {e}\n\n---\n\n"
 
-    reader = ReaderAgent()
-    writer = WriterAgent()
-    reviewer = ReviewerAgent()
-
+    result_md = f"## File: `{filepath}`\n\n"
+    
     # 1. Reader analyzes
-    print("\n[Step 1] Reading and Understanding...")
     logic_summary = reader.analyze_code(code)
-    print(f"-> Reader Output: {logic_summary}")
+    result_md += f"### 1. Logic Summary (Reader Agent)\n{logic_summary}\n\n"
 
     # 2. Writer generates docs
-    print("\n[Step 2] Generating Documentation...")
-    docstring = writer.generate_docstring(logic_summary)
-    print(f"-> Writer Output:\n{docstring}")
+    docstring = writer.generate_docstring(logic_summary, code)
+    result_md += f"### 2. Generated Documentation (Writer Agent)\n```python\n{docstring}\n```\n\n"
 
     # 3. Reviewer checks
-    print("\n[Step 3] Reviewing against source...")
     is_approved = reviewer.review(code, docstring)
-    if is_approved:
-        print("-> Status: ✅ APPROVED. Ready to merge PR.")
-    else:
-        print("-> Status: ❌ REJECTED. Needs revision by WriterAgent.")
+    status = "✅ APPROVED" if is_approved else "❌ REJECTED"
+    result_md += f"### 3. Review Status (Reviewer Agent)\n**{status}**\n\n---\n\n"
+    
+    return result_md
 
 def scan_and_process(target_dir):
     print(f"\n[Scanner] Starting scan in directory: {os.path.abspath(target_dir)}")
@@ -51,8 +44,23 @@ def scan_and_process(target_dir):
         return
 
     print(f"[Scanner] Found {len(python_files)} Python files to process.")
+    
+    reader = ReaderAgent()
+    writer = WriterAgent()
+    reviewer = ReviewerAgent()
+    
+    all_results = "# AutoCode-Analyzer Report\n\n"
+    
     for file_path in python_files:
-        process_file(file_path)
+        print(f"Processing: {file_path}...")
+        report = process_file(file_path, reader, writer, reviewer)
+        all_results += report
+        
+    output_file = "analysis_report.md"
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(all_results)
+    
+    print(f"\n[Success] All results have been aggregated into {output_file}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AutoCode-Analyzer: Code automated analysis and documentation agent.")
@@ -66,7 +74,16 @@ if __name__ == "__main__":
     
     target_path = args.path
     if os.path.isfile(target_path) and target_path.endswith('.py'):
-        process_file(target_path)
+        reader = ReaderAgent()
+        writer = WriterAgent()
+        reviewer = ReviewerAgent()
+        print(f"Processing single file: {target_path}...")
+        report = process_file(target_path, reader, writer, reviewer)
+        
+        output_file = "analysis_report.md"
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(f"# AutoCode-Analyzer Report\n\n{report}")
+        print(f"\n[Success] Result saved to {output_file}")
     elif os.path.isdir(target_path):
         scan_and_process(target_path)
     else:
