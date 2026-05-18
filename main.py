@@ -1,10 +1,15 @@
 import os
+import argparse
 from agents import ReaderAgent, WriterAgent, ReviewerAgent
 
 def process_file(filepath):
     print(f"\n--- Pipeline Started: Processing {filepath} ---")
-    with open(filepath, 'r', encoding='utf-8') as f:
-        code = f.read()
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            code = f.read()
+    except Exception as e:
+        print(f"Failed to read {filepath}: {e}")
+        return
 
     reader = ReaderAgent()
     writer = WriterAgent()
@@ -28,11 +33,41 @@ def process_file(filepath):
     else:
         print("-> Status: ❌ REJECTED. Needs revision by WriterAgent.")
 
-if __name__ == "__main__":
-    # Create a dummy python file to analyze for the demo
-    dummy_file = "sample_target.py"
-    with open(dummy_file, 'w', encoding='utf-8') as f:
-        f.write("def calculate_total(prices, tax_rate):\n    return sum(prices) * (1 + tax_rate)\n")
+def scan_and_process(target_dir):
+    print(f"\n[Scanner] Starting scan in directory: {os.path.abspath(target_dir)}")
+    ignore_dirs = {'.git', '.venv', 'venv', '__pycache__', 'env', '.idea', '.vscode'}
     
-    print("Welcome to AutoCode-Analyzer Agent System")
-    process_file(dummy_file)
+    python_files = []
+    for root, dirs, files in os.walk(target_dir):
+        # Exclude hidden and environment directories
+        dirs[:] = [d for d in dirs if d not in ignore_dirs and not d.startswith('.')]
+        
+        for file in files:
+            if file.endswith('.py'):
+                python_files.append(os.path.join(root, file))
+                
+    if not python_files:
+        print(f"[Scanner] No Python files found in {target_dir}.")
+        return
+
+    print(f"[Scanner] Found {len(python_files)} Python files to process.")
+    for file_path in python_files:
+        process_file(file_path)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="AutoCode-Analyzer: Code automated analysis and documentation agent.")
+    parser.add_argument("path", nargs="?", default=".", help="File or directory path to scan (default: current directory)")
+    
+    args = parser.parse_args()
+    
+    print("=============================================")
+    print(" Welcome to AutoCode-Analyzer Agent System")
+    print("=============================================")
+    
+    target_path = args.path
+    if os.path.isfile(target_path) and target_path.endswith('.py'):
+        process_file(target_path)
+    elif os.path.isdir(target_path):
+        scan_and_process(target_path)
+    else:
+        print(f"Error: Invalid path or not a python file: {target_path}")
